@@ -1,0 +1,20 @@
+{
+  "name": "what-we-are-reading",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/voltbonn/what-we-are-reading.git",
+  "author": "thomasrosen <thomas.rosen@me.com>",
+  "license": "",
+  "scripts": {
+    "start": "node ./index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "express-rate-limit": "^6.7.0",
+    "express-session": "^1.17.3",
+    "passport": "^0.6.0",
+    "passport-google-oauth": "^2.0.0",
+    "session-file-store": "^1.5.0"
+  }
+}
