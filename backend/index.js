@@ -14,7 +14,7 @@ const FileStore = require('session-file-store')(session)
 const passport = require('passport')
 const GoogleStrategy = require('passport-google-oauth').OAuth2Strategy
 
-const sqlite3 = require('sqlite3').verbose();
+const sqlite3 = require('@louislam/sqlite3').verbose();
 
 const { v4: uuidv4 } = require('uuid');
 
