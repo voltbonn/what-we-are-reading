@@ -18,6 +18,8 @@ const sqlite3 = require('@louislam/sqlite3').verbose();
 
 const { v4: uuidv4 } = require('uuid');
 
+const session_cookie_name = '__share_session'
+
 // const { fetch } = require('cross-fetch')
 
 // const fs = require('fs')
@@ -108,13 +110,13 @@ app.options("/*", function (req, res, next) {
 async function session_middleware(req, res, next) {
 
   if (!!req.headers['-x-session']) {
-    req.headers.cookie = '__session=' + req.headers['-x-session']
+    req.headers.cookie = session_cookie_name + '=' + req.headers['-x-session']
   }
 
   const sessionTTL = 60 * 60 * 24 * 14 // = 14 days
 
   session({
-    name: '__session',
+    name: session_cookie_name,
     secret: process.env.express_session_secret,
     cookie: {
       httpOnly: false,
@@ -263,7 +265,7 @@ a:hover {
 app.get('/logout', function (req, res) {
   req.session.cookie.maxAge = 0 // set the maxAge to zero, to delete the cookie
   req.logout(() => {
-    res.clearCookie('__session')
+    res.clearCookie(session_cookie_name)
     req.session.save(error => { // save the above setting
       if (error) {
         console.error(error)
