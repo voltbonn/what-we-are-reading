@@ -302,6 +302,7 @@ app.get('/api/whoami', (req, res) => {
 function getLastestPosts({
   amount = 10,
   hashtag = null,
+  user_email = null,
 }) {
   return new Promise(resolve => {
     // get data from sqlite database
@@ -316,7 +317,15 @@ function getLastestPosts({
           resolve([])
         } else {
           rows = rows.map(row => {
-            delete row.email;
+            if (user_email !== null) {
+              if (user_email === row.email) {
+                row.is_from_you = true
+              } else {
+                row.is_from_you = true
+              }
+            }
+
+            delete row.email; // make the posts annonymous
             return row
           })
           resolve(rows)
@@ -331,6 +340,7 @@ app.get('/api/latest', async (req, res) => {
     res.json({
       posts: await getLastestPosts({
         amount: 100,
+        user_email: req.user.email,
       })
     })
   } else {
@@ -345,6 +355,7 @@ app.get('/api/latest_with_hashtag/:hashtag', async (req, res) => {
     res.json({
       posts: await getLastestPosts({
         amount: 100,
+        user_email: req.user.email,
         hashtag,
       })
     })
