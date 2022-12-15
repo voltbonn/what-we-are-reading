@@ -136,9 +136,9 @@ function checkForHashtag() {
 
   const list_title_element = document.getElementById('list_title')
   if (hashtag) {
-    list_title_element.innerHTML = `Latest 10 Links for #${hashtag}`
+    list_title_element.innerHTML = `Latest Links for #${hashtag}`
   } else {
-    list_title_element.innerHTML = `Latest 10 Links`
+    list_title_element.innerHTML = `Latest Links`
   }
 }
 
