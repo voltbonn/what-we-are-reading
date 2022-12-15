@@ -14,6 +14,9 @@ const FileStore = require('session-file-store')(session)
 const passport = require('passport')
 const GoogleStrategy = require('passport-google-oauth').OAuth2Strategy
 
+const sqlite3 = require('sqlite3').verbose();
+
+const { v4: uuidv4 } = require('uuid');
 
 // const { fetch } = require('cross-fetch')
 
@@ -44,6 +47,14 @@ function checkOrigin(origin) {
     )
   )
 }
+
+
+const db_path = path.join(__dirname, '../../shared_links_db.sqlite3')
+const db = new sqlite3.Database(db_path)
+db.serialize(() => {
+  db.run('CREATE TABLE IF NOT EXISTS posts (uuid TEXT PRIMARY KEY, text TEXT, email TEXT, date TEXT)')
+})
+
 
 const app = express()
 
@@ -174,6 +185,13 @@ app.use(function (req, res, next) {
     req.logged_in = false
   }
 
+  const blocked_emails = (process.env.blocked_emails || '').split(',')
+  if (req.logged_in && blocked_emails.includes(req.user.email)) {
+    req.blocked = true
+  } else {
+    req.blocked = false
+  }
+
   // const origin = req.get('origin')
   const origin = req.header('Origin')
   if (checkOrigin(origin)) {
@@ -266,9 +284,12 @@ app.get('/login', (req, res) => {
   }))
 })
 
-app.get('/whoami', (req, res) => {
+app.get('/api/whoami', (req, res) => {
   if (req.logged_in === true && !!req.user) {
-    res.json(req.user)
+    res.json({
+      ...req.user,
+      blocked: req.blocked,
+    })
   } else {
     res.json({
       status: 'external'
@@ -276,27 +297,109 @@ app.get('/whoami', (req, res) => {
   }
 })
 
-app.get('/latest', (req, res) => {
+function getLastestPosts({
+  amount = 10,
+  hashtag = null,
+}) {
+  return new Promise(resolve => {
+    // get data from sqlite database
+    db.serialize(() => {
+      let sql = `SELECT uuid, text, date AS date FROM posts ORDER BY date DESC LIMIT ${amount}`
+      if (hashtag) {
+        sql = `SELECT uuid, text, date AS date FROM posts WHERE text LIKE "%#${hashtag}%" ORDER BY date DESC LIMIT ${amount}`
+      }
+      db.all(sql, (error, rows) => {  
+        if (error) {
+          console.error(error)
+          resolve([])
+        } else {
+          rows = rows.map(row => {
+            delete row.email;
+            return row
+          })
+          resolve(rows)
+        }
+      })
+    })
+  })
+}
+
+app.get('/api/latest', async (req, res) => {
   if (req.logged_in === true && !!req.user) {
     res.json({
-      data: [
-        {
-          id: '1',
-          description: 'just click it!',
-          date: '2020-01-01 19:31:47',
-          url: 'https://thomasrosen.me',
-        },
-        {
-          id: '1',
-          description: 'why not?',
-          date: '2020-01-01 16:31:47',
-          url: 'https://volteuropa.org',
-        },
-      ]
+      posts: await getLastestPosts({
+        amount: 10,
+      })
     })
   } else {
     res.json({
-      data: []
+      posts: []
+    })
+  }
+})
+app.get('/api/latest_with_hashtag/:hashtag', async (req, res) => {
+  const hashtag = req.params.hashtag || ''
+  if (hashtag.length > 0 && req.logged_in === true && !!req.user) {
+    res.json({
+      posts: await getLastestPosts({
+        amount: 10,
+        hashtag,
+      })
+    })
+  } else {
+    res.json({
+      posts: []
+    })
+  }
+})
+
+app.post('/api/share', (req, res) => {
+  if (req.logged_in === true && req.blocked === false && !!req.user) {
+    // get data from req.body
+
+    const text = req.body.text || ''
+
+    if (text.length === 0) {
+      res.json({
+        shared: false,
+        error: 'Plase enter a text.'
+      })
+    } else {
+
+      const data = {
+        uuid: uuidv4(), // todo check if uuid already exists
+        text: req.body.text,
+        email: req.user.email,
+        date: new Date().toISOString(),
+      }
+
+      // save to a sqlite database
+      try {
+        db.serialize(() => {
+          db.run('CREATE TABLE IF NOT EXISTS posts (uuid TEXT PRIMARY KEY, text TEXT, email TEXT, date TEXT)')
+          db.run('INSERT INTO posts (uuid, text, email, date) VALUES (?, ?, ?, ?)', [
+            data.uuid, data.text, data.email, data.date
+          ], function (error) {
+            if (error) {
+              throw error
+            } else {
+              res.json({
+                shared: true,
+              })
+            }
+          })
+        })
+      } catch (error) {
+        console.error(error)
+        res.json({
+          shared: false,
+          error: String(error),
+        })
+      }
+    }
+  } else {
+    res.json({
+      shared: false
     })
   }
 })

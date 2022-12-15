@@ -10,19 +10,19 @@
     <meta name="theme-color" content="#502379" media="(prefers-color-scheme: dark)" />
     <meta name="background-color" content="#502379" media="(prefers-color-scheme: dark)" />
     
-    <title data-react-helmet="true"></title>
-    <meta property="title" content="" data-react-helmet="true" />
-    <meta property="og:title" content="" data-react-helmet="true" />
-    <meta name="twitter:title" content="" data-react-helmet="true" />
+    <title></title>
+    <meta property="title" content="What we are reading." />
+    <meta property="og:title" content="What we are reading." />
+    <meta name="twitter:title" content="What we are reading." />
     
-    <meta name="description" content="" data-react-helmet="true" />
-    <meta property="og:description" content="" data-react-helmet="true" />
-    <meta name="twitter:description" content="" data-react-helmet="true" />
+    <meta name="description" content="Instead of scrolling endlessly through social media, you have a list of interesing links curated by people from Volt." />
+    <meta property="og:description" content="Instead of scrolling endlessly through social media, you have a list of interesing links curated by people from Volt."" />
+    <meta name="twitter:description" content="Instead of scrolling endlessly through social media, you have a list of interesing links curated by people from Volt." />
     
-    <meta property="og:image" content="" data-react-helmet="true" />
-    <meta name="twitter:image" content="" data-react-helmet="true" />
+    <meta property="og:image" content="" />
+    <meta name="twitter:image" content="" />
     
-    <meta property="twitter:card" content="summary" data-react-helmet="true" />
+    <meta property="twitter:card" content="summary" />
     
     <link rel="apple-touch-icon" href="./volt-logo-white-192.png" />
     <link rel="manifest" href="./manifest.json" />
@@ -50,98 +50,121 @@
     <link rel="preload" href="./Ubuntu/ubuntu-v15-latin-regular.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="./Ubuntu/ubuntu-v15-latin-700.woff2" as="font" type="font/woff2" crossorigin />
 
-    <!-- <link rel="stylesheet" href="./style.css"> -->
+    <link rel="stylesheet" href="./style.css">
     <style>
       body {
-        background-color: #000000;
-        color: #ffffff;
-        font-family: Ubuntu, sans-serif;
+          background: var(--background);
+          color: var(--on-background);
+          font-size: var(--body-font-size);
       }
 
       main {
-        width: 600px;
-        max-width: 100%;
         margin: 0 auto;
+        min-height: 100vh;
+        padding: var(--basis_x16) var(--basis_x4) 50vh var(--basis_x4);
+      }
+      .columns {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: var(--basis_x8);
+      }
+      .column {
+        width: 480px;
+        max-width: 100%;
       }
 
-      section {
-        background: rgba(255,255,255,0.1);
-        margin: 1rem 0;
-        padding: 1rem;
+      .shared_item {
+        margin: var(--basis_x4) 0;
+        padding: var(--basis_x4);
+        background: var(--purple);
+        color: var(--on-purple);
+      }
+      .shared_item .text{
+        margin-top: 0;
+        font-weight: bold;
+      }
+      .shared_item .text a.url {
+        font-weight: normal;
+      }
+
+      .no_side_margin {
+        margin-left: 0;
+        margin-right: 0;
+      }
+
+      p,
+      .type_p {
+        margin: var(--basis_x2) 0;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      textarea {
+        min-height: var(--basis_x16);
       }
     </style>
   </head>
 
-  <body>
+  <body class="basis_0_3">
   <main>
-    <h1>What we are reading…</h1>
 
-    <a id="login_wrapper" href="/login">
-      <p>
-        Instead of scrolling endlessly through social media, you have a list of interesing links curated by people from Volt.
-      </p>
-      <p>After you log in with your Volt Europa Account, you can share links and the newest links from other people in Volt Europa.</p>
+    <div class="columns" id="login_wrapper">
+      <div class="column">
+        <h1 style="margin:0;">What we are reading…</h1>
 
-      <button>Login</button>
-    </a>
-    <div id="logout_wrapper">
-      <p>
-        Instead of scrolling endlessly through social media, you have a list of interesing links curated by people from Volt.
-      </p>
-      <p>
-        Hi! You are logged in as <strong id="user_email"></strong>.<br />
-        <a href="/logout"><button>Logout</button></a>
-      </p>
-    
-      <section>
-        <h2>Share a link</h2>
-        <p>Don't forget to give a tiny clickbaity description… why should anybody click on your link?</p>
-        <textarea id="new_share" placeholder="https://…"></textarea><br/>
-        <button id="share_submit_button">Share to Volt</button>
-      </section>
-      <section id="list_section"></section>
+        <p>Instead of scrolling endlessly through social media, you have a list of interesting links curated by people from Volt.</p>
+        <p>After you log in with your Volt Europa Account, you can share links and see the latest links from other people in Volt.</p>
 
+        <a href="/login">
+          <button class="default no_side_margin">Login</button>
+        </a>
+      </div>
+    </div>
+
+    <div class="columns hidden" id="logout_wrapper">
+      <div class="column">
+
+        <h1 style="margin:0;">What we are reading…</h1>
+        
+        <p>Instead of scrolling endlessly through social media, you have a list of interesting links curated by people from Volt.</p>
+
+        <br />
+        <p>
+          Hi! You are logged in as <strong id="user_email"></strong>.
+        </p>
+        <p>
+          <a href="/logout"><button class="default no_side_margin">Logout</button></a>
+        </p>
+        <br />
+
+        <div id="share_wrapper">
+          <h2>Share a link…</h2>
+          <textarea id="new_share_text" placeholder="This article is so inspiring!!! https://…" class="no_side_margin"
+            style="width: 100%;"></textarea><br />
+          <button id="share_submit_button" class="default green no_side_margin">Share to Volt</button>
+          <p class="body2">
+            <em>We record who posted what, to block you if you post harmful content. But everything is displayed
+              annonymously.</em>
+          </p>
+        </div>
+        <div id="blocked_wrapper" style="display:none;">
+          <p>You are currently not allowed to share new links.</p>
+        </div>
+      </div>
+
+      <div class="column">
+        <a href="/">
+          <h2 id="list_title" style="margin:0;">Latest 10 Links</h2>
+        </a>
+        <section id="list_section"></section>
+      </div>
     </div>
   </main>
   
-  <!-- <script src="./script.js"></script> -->
-  <script>
-
-    // fetch /whoami
-    fetch('/whoami')
-      .then(response => response.json())
-      .then(data => {
-        if (data.email) {
-          document.getElementById('login_wrapper').style.display = 'none';
-          document.getElementById('logout_wrapper').style.display = 'block';
-          document.getElementById('user_email').innerHTML = `${data.email}`;
-        } else {
-          document.getElementById('login_wrapper').style.display = 'block';
-          document.getElementById('logout_wrapper').style.display = 'none';
-          document.getElementById('user_email').innerHTML = '???@???.???';
-        }
-      })
-
-    // fetch list from /latest
-    fetch('/latest')
-      .then(response => response.json())
-      .then(data => {
-        console.log(data);
-        const latest = data.data
-        document.getElementById('list_section').innerHTML = `
-          <h2>Latest</h2>
-          ${latest.map(item => `
-            <div class="shared_item">
-              <a href="${item.url}" target="_blank">
-                <p>${item.description}</p>
-                <div>${item.url}</div>
-              </a>
-              <div>${item.tags}</div>
-            </div>
-          `).join('')}
-        `;
-      })
-
-  </script>
+  <script src="./script.js"></script>
   </body>
 </html>
