@@ -330,7 +330,7 @@ app.get('/api/latest', async (req, res) => {
   if (req.logged_in === true && !!req.user) {
     res.json({
       posts: await getLastestPosts({
-        amount: 10,
+        amount: 100,
       })
     })
   } else {
@@ -344,7 +344,7 @@ app.get('/api/latest_with_hashtag/:hashtag', async (req, res) => {
   if (hashtag.length > 0 && req.logged_in === true && !!req.user) {
     res.json({
       posts: await getLastestPosts({
-        amount: 10,
+        amount: 100,
         hashtag,
       })
     })
