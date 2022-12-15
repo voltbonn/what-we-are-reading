@@ -68,7 +68,7 @@ function getLatest() {
 
       document.getElementById('list_section').innerHTML = `
           ${latest.map(item => `
-            <div class="shared_item">
+            <div class="shared_item ${item.is_from_you === true ? 'is_from_the_user' : 'is_not_from_the_user'}">
               <p class="text">${item.text}</p>
               <em class="body2">${item.date}</em>
             </div>
