@@ -1,1 +1,147 @@
-<h1>What we are reading.</h1>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>What we are reading.</title>
+
+    <meta charset="utf-8" />
+    <link rel="icon" href="./favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#502379" media="(prefers-color-scheme: dark)" />
+    <meta name="background-color" content="#502379" media="(prefers-color-scheme: dark)" />
+    
+    <title data-react-helmet="true"></title>
+    <meta property="title" content="" data-react-helmet="true" />
+    <meta property="og:title" content="" data-react-helmet="true" />
+    <meta name="twitter:title" content="" data-react-helmet="true" />
+    
+    <meta name="description" content="" data-react-helmet="true" />
+    <meta property="og:description" content="" data-react-helmet="true" />
+    <meta name="twitter:description" content="" data-react-helmet="true" />
+    
+    <meta property="og:image" content="" data-react-helmet="true" />
+    <meta name="twitter:image" content="" data-react-helmet="true" />
+    
+    <meta property="twitter:card" content="summary" data-react-helmet="true" />
+    
+    <link rel="apple-touch-icon" href="./volt-logo-white-192.png" />
+    <link rel="manifest" href="./manifest.json" />
+
+    <script>
+      // Just to make the console a bit queer.
+      console.info('%c \n Be yourself! \n\n', `
+        font-family: Ubuntu, sans-serif;
+        font-size: 5rem;
+        font-weight: bold;
+        color: white;
+        text-shadow:
+          1px 1px #ff69b5,
+          2px 2px #ff0000,
+          3px 3px #ff8f00,
+          4px 4px #ffff00,
+          5px 5px #008f00,
+          6px 6px #00c1c1,
+          7px 7px #3e0099,
+          8px 8px #8f008f;
+      `)
+    </script>
+
+    <link rel="stylesheet" href="./Ubuntu/index.css" type="text/css" />
+    <link rel="preload" href="./Ubuntu/ubuntu-v15-latin-regular.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="./Ubuntu/ubuntu-v15-latin-700.woff2" as="font" type="font/woff2" crossorigin />
+
+    <!-- <link rel="stylesheet" href="./style.css"> -->
+    <style>
+      body {
+        background-color: #000000;
+        color: #ffffff;
+        font-family: Ubuntu, sans-serif;
+      }
+
+      main {
+        width: 600px;
+        max-width: 100%;
+        margin: 0 auto;
+      }
+
+      section {
+        background: rgba(255,255,255,0.1);
+        margin: 1rem 0;
+        padding: 1rem;
+      }
+    </style>
+  </head>
+
+  <body>
+  <main>
+    <h1>What we are reading…</h1>
+
+    <a id="login_wrapper" href="/login">
+      <p>
+        Instead of scrolling endlessly through social media, you have a list of interesing links curated by people from Volt.
+      </p>
+      <p>After you log in with your Volt Europa Account, you can share links and the newest links from other people in Volt Europa.</p>
+
+      <button>Login</button>
+    </a>
+    <div id="logout_wrapper">
+      <p>
+        Instead of scrolling endlessly through social media, you have a list of interesing links curated by people from Volt.
+      </p>
+      <p>
+        Hi! You are logged in as <strong id="user_email"></strong>.<br />
+        <a href="/logout"><button>Logout</button></a>
+      </p>
+    
+      <section>
+        <h2>Share a link</h2>
+        <p>Don't forget to give a tiny clickbaity description… why should anybody click on your link?</p>
+        <textarea id="new_share" placeholder="https://…"></textarea><br/>
+        <button id="share_submit_button">Share to Volt</button>
+      </section>
+      <section id="list_section"></section>
+
+    </div>
+  </main>
+  
+  <!-- <script src="./script.js"></script> -->
+  <script>
+
+    // fetch /whoami
+    fetch('/whoami')
+      .then(response => response.json())
+      .then(data => {
+        if (data.email) {
+          document.getElementById('login_wrapper').style.display = 'none';
+          document.getElementById('logout_wrapper').style.display = 'block';
+          document.getElementById('user_email').innerHTML = `${data.email}`;
+        } else {
+          document.getElementById('login_wrapper').style.display = 'block';
+          document.getElementById('logout_wrapper').style.display = 'none';
+          document.getElementById('user_email').innerHTML = '???@???.???';
+        }
+      })
+
+    // fetch list from /latest
+    fetch('/latest')
+      .then(response => response.json())
+      .then(data => {
+        console.log(data);
+        const latest = data.data
+        document.getElementById('list_section').innerHTML = `
+          <h2>Latest</h2>
+          ${latest.map(item => `
+            <div class="shared_item">
+              <a href="${item.url}" target="_blank">
+                <p>${item.description}</p>
+                <div>${item.url}</div>
+              </a>
+              <div>${item.tags}</div>
+            </div>
+          `).join('')}
+        `;
+      })
+
+  </script>
+  </body>
+</html>

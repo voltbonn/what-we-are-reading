@@ -244,32 +244,20 @@ a:hover {
 
 app.get('/logout', function (req, res) {
   req.session.cookie.maxAge = 0 // set the maxAge to zero, to delete the cookie
-  req.logout()
-  res.clearCookie('__session')
-  req.session.save(error => { // save the above setting
-    if (error) {
-      console.error(error)
-      res.send(error)
-    } else {
-      const redirect_to = req.query.redirect_to
-      res.redirect(typeof redirect_to === 'string' && redirect_to.length > 0 ? redirect_to : '/') // send the updated cookie to the user and go to the initally page
-    }
+  req.logout(() => {
+    res.clearCookie('__session')
+    req.session.save(error => { // save the above setting
+      if (error) {
+        console.error(error)
+        res.send(error)
+      } else {
+        const redirect_to = req.query.redirect_to
+        res.redirect(typeof redirect_to === 'string' && redirect_to.length > 0 ? redirect_to : '/') // send the updated cookie to the user and go to the initally page
+      }
+    })
   })
 })
 // END AUTH
-
-app.options("/*", function (req, res, next) {
-  // correctly response for cors
-  if (req.is_subdomain) {
-    res.setHeader('Access-Control-Allow-Origin', req.origin)
-    res.setHeader('Access-Control-Allow-Credentials', true)
-    res.setHeader('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With')
-    res.sendStatus(200)
-  } else {
-    res.sendStatus(403)
-  }
-})
 
 app.get('/login', (req, res) => {
   res.redirect(url.format({
@@ -279,7 +267,38 @@ app.get('/login', (req, res) => {
 })
 
 app.get('/whoami', (req, res) => {
-  res.json(req.user)
+  if (req.logged_in === true && !!req.user) {
+    res.json(req.user)
+  } else {
+    res.json({
+      status: 'external'
+    })
+  }
+})
+
+app.get('/latest', (req, res) => {
+  if (req.logged_in === true && !!req.user) {
+    res.json({
+      data: [
+        {
+          id: '1',
+          description: 'just click it!',
+          date: '2020-01-01 19:31:47',
+          url: 'https://thomasrosen.me',
+        },
+        {
+          id: '1',
+          description: 'why not?',
+          date: '2020-01-01 16:31:47',
+          url: 'https://volteuropa.org',
+        },
+      ]
+    })
+  } else {
+    res.json({
+      data: []
+    })
+  }
 })
 
 app.use(express.static(static_files_path))
