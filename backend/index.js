@@ -406,7 +406,7 @@ app.post('/api/share', (req, res) => {
 
 app.use(express.static(static_files_path))
 
-const port = 4004
+const port = 4008
 const host = '0.0.0.0' // Uberspace wants 0.0.0.0
 http.createServer(app).listen({ port, host }, () => {
   console.info(`
