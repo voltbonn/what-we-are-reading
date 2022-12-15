@@ -146,7 +146,7 @@ passport.deserializeUser(function (id, done) {
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: (isDevEnvironment ? 'http://localhost:4004/auth/google/callback' : 'https://api.volt.link/auth/google/callback'),
+  callbackURL: (isDevEnvironment ? 'http://localhost:4004/auth/google/callback' : 'https://share.volt.link/auth/google/callback'),
 },
   function (accessToken, refreshToken, profile = {}, done) {
     if (
