@@ -68,10 +68,10 @@ const app = express()
 //   max: 1000, // requests per minute
 // })) // apply rate limiter to all requests
 
-// set up rate limiter: maximum of 100 requests per minute
+// set up rate limiter:
 app.use(rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
-  max: 1000, // Limit each IP to 1000 requests per `window` (here, per 1 minute)
+  max: 100, // Limit each IP to 100 requests per `window` (here, per 1 minute)
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 })) // apply rate limiter to all requests
