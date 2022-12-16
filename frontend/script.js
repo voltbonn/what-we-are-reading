@@ -45,14 +45,14 @@ function getLatest() {
               }
 
               // url encode the url
-              const url_encoded = encodeURIComponent(url)
+              const url_encoded = encodeURI(url)
 
               return `<a class="url" href="${url_encoded}" target="_blank">${url}</a>`
             })
             // make hashtags clickable
             .replace(hashtag_regex, (match, p1) => {
               // todo make sure that this does not break out of the s-tag by stripping possible html tags
-              return `<a class="hashtag" href="?hashtag=${p1}">${match}</a>`
+              return `<a class="hashtag" href="?hashtag=${encodeURIComponent(p1)}">${match}</a>`
             })
 
           // get the difference between now and the date in a human readable format
