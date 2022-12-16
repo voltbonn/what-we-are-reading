@@ -440,6 +440,36 @@ app.post('/api/share', (req, res) => {
   }
 })
 
+app.delete('/api/delete/:uuid', (req, res) => {
+  const uuid = req.params.uuid || ''
+  if (uuid.length > 0 && req.roles.internal_user === true && !!req.user) {
+    // delete post with the uuid
+    const email = req.user.email
+    try {
+      db.serialize(() => {
+        db.run('DELETE FROM posts WHERE uuid = ? AND email = ?', [uuid, email], function (error) {
+          if (error) {
+            throw error
+          } else {
+            res.json({
+              deleted: true,
+            })
+          }
+        })
+      })
+    } catch (error) {
+      console.error(error)
+      res.json({
+        deleted: false,
+        error: String(error),
+      })
+    }
+  } else {
+    res.json({
+      deleted: false
+    })
+  }
+})
 app.use(express.static(static_files_path))
 
 const port = 4008

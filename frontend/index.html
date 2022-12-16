@@ -77,20 +77,26 @@
 
       .shared_item {
         margin: var(--basis_x4) 0;
-        padding: var(--basis_x4);
         background: var(--purple);
         color: var(--on-purple);
       }
-      .shared_item.is_from_the_user {
-        background: var(--on-purple);
-        color: var(--purple);
-      }
       .shared_item .text{
-        margin-top: 0;
+        margin: 0;
         font-weight: bold;
+        padding: var(--basis_x4) var(--basis_x4) var(--basis_x2) var(--basis_x4);
       }
       .shared_item .text a.url {
         font-weight: normal;
+      }
+      .shared_item .footer {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 var(--basis_x4) var(--basis_x2) var(--basis_x4);
+      }
+      .shared_item .footer button {
+        margin: 0;
       }
 
       .no_side_margin {

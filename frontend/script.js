@@ -25,6 +25,7 @@ function getLatest() {
   fetch(url)
     .then(response => response.json())
     .then(data => {
+
       const latest = data.posts
         .sort((a, b) => new Date(b.date) - new Date(a.date))
         .map(item => {
@@ -81,14 +82,54 @@ function getLatest() {
           return item
         })
 
-      document.getElementById('list_section').innerHTML = `
-          ${latest.map(item => `
-            <div class="shared_item ${item.is_from_you === true ? 'is_from_the_user' : 'is_not_from_the_user'}">
-              <p class="text">${item.text}</p>
-              <em class="body2">${item.date}</em>
-            </div>
-          `).join('')}
-        `;
+      // todo add delete button via /api/delete/:uuid
+
+      const list_section_element = document.querySelector('#list_section')
+      list_section_element.innerHTML = ''
+
+      for (const item of latest) {
+        const new_item = document.createElement('div')
+        new_item.classList.add('shared_item')
+
+        const text_ele = document.createElement('p')
+        text_ele.classList.add('text')
+        text_ele.innerHTML = item.text
+        new_item.appendChild(text_ele)
+
+        const footer_ele = document.createElement('div')
+        footer_ele.classList.add('footer')
+        
+        const date_ele = document.createElement('em')
+        date_ele.classList.add('body2')
+        date_ele.innerHTML = item.date
+        footer_ele.appendChild(date_ele)
+
+        if (item.permissions.can_delete === true) {
+          const delete_button_ele = document.createElement('button')
+          delete_button_ele.classList.add('red')
+          delete_button_ele.innerHTML = 'Delete'
+          delete_button_ele.addEventListener('click', () => {
+            fetch(`/api/delete/${item.uuid}`, {
+              method: 'DELETE'
+            })
+              .then(response => response.json())
+              .then(data => {
+                if (data.deleted === true) {
+                  new_item.remove()
+                } else {
+                  console.error(data)
+                  alert('Could not delete item')
+                }
+              })
+          })
+          footer_ele.appendChild(delete_button_ele)
+        }
+
+        new_item.appendChild(footer_ele)
+
+        list_section_element.appendChild(new_item)
+      }
+
     })
 }
 
