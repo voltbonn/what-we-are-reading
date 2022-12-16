@@ -30,10 +30,25 @@ function getLatest() {
         .map(item => {
 
           item.text = item.text
+            // replace html parts with html-special-chars
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;')
+            // make urls clickable
             .replace(url_regex, match => {
-              // todo make sure that this does not break out of the s-tag by stripping possible html tags
-              return `<a class="url" href="${match}" target="_blank">${match}</a>`
+
+              const url = new URL(match)
+              if (url.hostname === 'localhost') {
+                return url
+              }
+
+              // url encode the url
+              const url_encoded = encodeURIComponent(url)
+
+              return `<a class="url" href="${url_encoded}" target="_blank">${url}</a>`
             })
+            // make hashtags clickable
             .replace(hashtag_regex, (match, p1) => {
               // todo make sure that this does not break out of the s-tag by stripping possible html tags
               return `<a class="hashtag" href="?hashtag=${p1}">${match}</a>`
