@@ -28,9 +28,9 @@ function getLatest() {
 
       const latest = data.posts
         .sort((a, b) => new Date(b.date) - new Date(a.date))
-        .map(item => {
+        .map(post => {
 
-          item.text = item.text
+          post.text = post.text
             // replace html parts with html-special-chars
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
@@ -47,16 +47,30 @@ function getLatest() {
               // url encode the url
               const url_encoded = encodeURI(url)
 
-              return `<a class="url" href="${url_encoded}" target="_blank">${url}</a>`
+              let click_count = post.statistics.find(statistic => statistic.about_content === String(url))
+              if (!click_count) {
+                click_count = 0
+              } else {
+                click_count = click_count.count
+              }
+
+              return `<a class="url" href="${url_encoded}" target="_blank" data-click-count="${click_count}">${url}</a>`
             })
             // make hashtags clickable
             .replace(hashtag_regex, (match, p1) => {
               // todo make sure that this does not break out of the s-tag by stripping possible html tags
-              return `<a class="hashtag" href="?hashtag=${encodeURIComponent(p1)}">${match}</a>`
+              let click_count = post.statistics.find(statistic => statistic.about_content === match)
+              if (!click_count) {
+                click_count = 0
+              } else {
+                click_count = click_count.count
+              }
+
+              return `<a class="hashtag" href="?hashtag=${encodeURIComponent(p1)}" data-click-count="${click_count}">${match}</a>`
             })
 
           // get the difference between now and the date in a human readable format
-          const date = new Date(item.date)
+          const date = new Date(post.date)
           const diff = new Date() - date
           if (diff >= 0) {
             const diff_days = Math.floor(diff / (1000 * 60 * 60 * 24))
@@ -65,69 +79,97 @@ function getLatest() {
             const diff_seconds = Math.floor(diff / (1000))
 
             if (diff_seconds < 60) {
-              item.date = `${diff_seconds} ${diff_seconds === 1 ? 'second' : 'seconds'} ago`
+              post.date = `${diff_seconds} ${diff_seconds === 1 ? 'second' : 'seconds'} ago`
             } else if (diff_minutes < 60) {
-              item.date = `${diff_minutes} ${diff_minutes === 1 ? 'minute' : 'minutes'} ago`
+              post.date = `${diff_minutes} ${diff_minutes === 1 ? 'minute' : 'minutes'} ago`
             } else if (diff_hours < 24) {
-              item.date = `${diff_hours} ${diff_hours === 1 ? 'hour' : 'hours'} ago`
+              post.date = `${diff_hours} ${diff_hours === 1 ? 'hour' : 'hours'} ago`
             } else if (diff_days < 7) {
-              item.date = `${diff_days} ${diff_days === 1 ? 'day' : 'days'} ago`
+              post.date = `${diff_days} ${diff_days === 1 ? 'day' : 'days'} ago`
             } else {
-              item.date = new Date(item.date).toLocaleString()
+              post.date = new Date(post.date).toLocaleString()
             }
           } else {
-            item.date = `${new Date(item.date).toLocaleString()} – IN THE FUTURE`
+            post.date = `${new Date(post.date).toLocaleString()} – IN THE FUTURE`
           }
 
-          return item
+          return post
         })
-
-      // todo add delete button via /api/delete/:uuid
 
       const list_section_element = document.querySelector('#list_section')
       list_section_element.innerHTML = ''
 
-      for (const item of latest) {
-        const new_item = document.createElement('div')
-        new_item.classList.add('shared_item')
+      for (const post of latest) {
+        const new_post_ele = document.createElement('div')
+        new_post_ele.classList.add('shared_post')
 
         const text_ele = document.createElement('p')
         text_ele.classList.add('text')
-        text_ele.innerHTML = item.text
-        new_item.appendChild(text_ele)
+        text_ele.innerHTML = post.text
+        text_ele.querySelectorAll('a.url')
+          .forEach(url_ele => {
+            url_ele.addEventListener('click', event => {
+
+              // get the url from the href attribute
+              const url = new URL(decodeURIComponent(url_ele.href))
+
+              saveStatistics({
+                taken_action: 'click',
+                about_post_uuid: post.uuid,
+                about_content: String(url),
+              })
+              
+            })
+          })
+        text_ele.querySelectorAll('a.hashtag')
+          .forEach(hashtag_ele => {
+            hashtag_ele.addEventListener('click', event => {
+
+              // get the hashtag from the inner text
+              const hashtag = hashtag_ele.innerText
+
+              saveStatistics({
+                taken_action: 'click',
+                about_post_uuid: post.uuid,
+                about_content: hashtag,
+              })
+
+            })
+          })
+        new_post_ele.appendChild(text_ele)
 
         const footer_ele = document.createElement('div')
         footer_ele.classList.add('footer')
         
         const date_ele = document.createElement('em')
         date_ele.classList.add('body2')
-        date_ele.innerHTML = item.date
+        date_ele.innerHTML = post.date
         footer_ele.appendChild(date_ele)
 
-        if (item.permissions.can_delete === true) {
+        if (post.permissions.can_delete === true) {
           const delete_button_ele = document.createElement('button')
           delete_button_ele.classList.add('red')
           delete_button_ele.innerHTML = 'Delete'
           delete_button_ele.addEventListener('click', () => {
-            fetch(`/api/delete/${item.uuid}`, {
+            fetch(`/api/delete/${post.uuid}`, {
               method: 'DELETE'
             })
               .then(response => response.json())
               .then(data => {
                 if (data.deleted === true) {
-                  new_item.remove()
+                  new_post_ele.remove()
                 } else {
                   console.error(data)
-                  alert('Could not delete item')
+                  alert('Could not delete the post.')
                 }
               })
           })
           footer_ele.appendChild(delete_button_ele)
         }
 
-        new_item.appendChild(footer_ele)
+        new_post_ele.appendChild(footer_ele)
 
-        list_section_element.appendChild(new_item)
+        list_section_element.appendChild(new_post_ele)
       }
 
     })
@@ -155,6 +197,24 @@ function checkIfLoggedIn() {
         document.getElementById('blocked_wrapper').classList.add('hidden');
       }
     })
+}
+
+function saveStatistics({
+  taken_action = '',
+  about_post_uuid= '',
+  about_content = '',
+}) {
+  fetch('/api/statistics', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      taken_action,
+      about_post_uuid,
+      about_content,
+    })
+  })
 }
 
 function initShareButtonListener() {

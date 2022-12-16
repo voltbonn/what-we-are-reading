@@ -62,6 +62,7 @@ const db_path = path.join(__dirname, '../../shared_links_db.sqlite3')
 const db = new sqlite3.Database(db_path)
 db.serialize(() => {
   db.run('CREATE TABLE IF NOT EXISTS posts (uuid TEXT PRIMARY KEY, text TEXT, email TEXT, date TEXT)')
+  db.run('CREATE TABLE IF NOT EXISTS statistics (uuid TEXT PRIMARY KEY, user_email TEXT, taken_action TEXT, about_post_uuid TEXT, about_content TEXT, date TEXT)')
 })
 
 
@@ -316,6 +317,24 @@ app.get('/api/whoami', (req, res) => {
   }
 })
 
+function getStatisticsForPost({
+  about_post_uuid = null,
+}) {
+  return new Promise(resolve => {
+    db.serialize(() => {
+      const sql = 'SELECT about_content, COUNT(about_content) AS count FROM statistics WHERE about_post_uuid = ? GROUP BY about_content'
+      db.all(sql, [about_post_uuid], (error, rows) => {
+        if (error) {
+          console.error(error)
+          resolve([])
+        } else {
+          resolve(rows)
+        }
+      })
+    })
+  })
+}
+
 function getLastestPosts({
   amount = 10,
   hashtag = null,
@@ -326,15 +345,23 @@ function getLastestPosts({
     // get data from sqlite database
     db.serialize(() => {
       let sql = `SELECT uuid, text, email, date AS date FROM posts ORDER BY date DESC LIMIT ${amount}`
+
       if (hashtag) {
         sql = `SELECT uuid, text, email, date AS date FROM posts WHERE text LIKE "%#${hashtag}%" ORDER BY date DESC LIMIT ${amount}`
       }
-      db.all(sql, (error, rows) => {  
+      db.all(sql, async (error, rows) => {  
         if (error) {
           console.error(error)
           resolve([])
         } else {
-          rows = rows.map(row => {
+
+          for (let i = 0; i < rows.length; i++) {
+            const row = rows[i]
+
+            row.statistics = await getStatisticsForPost({
+              about_post_uuid: row.uuid,
+            })
+
             row.permissions = {
               can_delete: false,
             }
@@ -349,8 +376,9 @@ function getLastestPosts({
             }
 
             delete row.email; // make the posts annonymous
-            return row
-          })
+
+            rows[i] = row
+          }
           resolve(rows)
         }
       })
@@ -470,6 +498,80 @@ app.delete('/api/delete/:uuid', (req, res) => {
     })
   }
 })
+
+app.post('/api/statistics', (req, res) => {
+
+  if (req.roles.internal_user === false) {
+    res.json({
+      saved: false,
+      error: 'Not logged in.',
+    })
+    return
+  }
+
+  const data = {
+    taken_action: req.body.taken_action || '',
+    about_post_uuid: req.body.about_post_uuid || '',
+    about_content: req.body.about_content || '',
+
+    uuid: uuidv4(), // todo check if uuid already exists
+    user_email: req.user.email || '',
+    date: new Date().toISOString(),
+  }
+
+  if (data.about_post_uuid.length === 0) {
+    res.json({
+      saved: false,
+      error: 'No post uuid.',
+    })
+  }
+
+  if (data.taken_action.length === 0) {
+    res.json({
+      saved: false,
+      error: 'No action.',
+    })
+  }
+
+  if (data.about_post_uuid.length > 0) {
+    // save to a sqlite database
+    try {
+      db.serialize(() => {
+        db.run('CREATE TABLE IF NOT EXISTS statistics (uuid TEXT PRIMARY KEY, user_email TEXT, taken_action TEXT, about_post_uuid TEXT, about_content TEXT, date TEXT)')
+        // uuid
+        // user_email = email_of_user
+        // taken_action = action_that_happend "clicked"
+        // post_uuid = uuid_of_post / where
+        // content = what_was_clicked
+        // date
+        db.run('INSERT INTO statistics (uuid, user_email, taken_action, about_post_uuid, about_content, date) VALUES (?, ?, ?, ?, ?, ?)', [
+          data.uuid, data.user_email, data.taken_action, data.about_post_uuid, data.about_content, data.date
+        ], function (error) {
+          if (error) {
+            throw error
+          } else {
+            res.json({
+              saved: true,
+            })
+          }
+        })
+      })
+    } catch (error) {
+      console.error(error)
+      res.json({
+        saved: false,
+        error: String(error),
+      })
+    }
+  } else {
+    res.json({
+      saved: false
+    })
+  }
+})
+
+
+
 app.use(express.static(static_files_path))
 
 const port = 4008
