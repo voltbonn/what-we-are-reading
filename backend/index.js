@@ -20,6 +20,13 @@ const { v4: uuidv4 } = require('uuid');
 
 const session_cookie_name = '__share_session'
 
+const default_roles = {
+  external_user: false,
+  internal_user: false,
+  blocked: false,
+  moderator: false,
+}
+
 // const { fetch } = require('cross-fetch')
 
 // const fs = require('fs')
@@ -181,18 +188,27 @@ app.use(passport.initialize())
 app.use(passport.session())
 
 app.use(function (req, res, next) {
+
+  req.roles = default_roles
+
   if (!!req.user && !!req.user.id && req.user.id !== null) {
-    req.logged_in = true
+    req.roles.internal_user = true
   } else {
-    req.logged_in = false
+    req.roles.external_user = true
   }
 
-  const blocked_emails = (process.env.blocked_emails || '').split(',')
-  if (req.logged_in && blocked_emails.includes(req.user.email)) {
-    req.blocked = true
-  } else {
-    req.blocked = false
+  if (req.roles.internal_user) {
+    const blocked_emails = (process.env.blocked_emails || '').split(',')
+    if (req.logged_in && blocked_emails.includes(req.user.email)) {
+      req.roles.blocked = true
+    }
+
+    const moderator_emails = (process.env.moderator_emails || '').split(',')
+    if (req.logged_in && moderator_emails.includes(req.user.email)) {
+      req.roles.moderator = true
+    }
   }
+  
 
   // const origin = req.get('origin')
   const origin = req.header('Origin')
@@ -287,14 +303,15 @@ app.get('/login', (req, res) => {
 })
 
 app.get('/api/whoami', (req, res) => {
-  if (req.logged_in === true && !!req.user) {
+  if (req.roles.internal_user === true && !!req.user) {
     res.json({
       ...req.user,
-      blocked: req.blocked,
+      roles: req.roles,
     })
   } else {
     res.json({
-      status: 'external'
+      status: 'external',
+      roles: req.roles,
     })
   }
 })
@@ -303,13 +320,14 @@ function getLastestPosts({
   amount = 10,
   hashtag = null,
   user_email = null,
+  roles = default_roles,
 }) {
   return new Promise(resolve => {
     // get data from sqlite database
     db.serialize(() => {
-      let sql = `SELECT uuid, text, date AS date FROM posts ORDER BY date DESC LIMIT ${amount}`
+      let sql = `SELECT uuid, text, email, date AS date FROM posts ORDER BY date DESC LIMIT ${amount}`
       if (hashtag) {
-        sql = `SELECT uuid, text, date AS date FROM posts WHERE text LIKE "%#${hashtag}%" ORDER BY date DESC LIMIT ${amount}`
+        sql = `SELECT uuid, text, email, date AS date FROM posts WHERE text LIKE "%#${hashtag}%" ORDER BY date DESC LIMIT ${amount}`
       }
       db.all(sql, (error, rows) => {  
         if (error) {
@@ -317,11 +335,16 @@ function getLastestPosts({
           resolve([])
         } else {
           rows = rows.map(row => {
+            row.permissions = {
+              can_delete: false,
+            }
+
             if (user_email !== null) {
-              if (user_email === row.email) {
-                row.is_from_you = true
-              } else {
-                row.is_from_you = true
+              if (
+                user_email === row.email
+                || roles.moderator.includes(user_email)
+              ) {
+                row.permissions.can_delete = true
               }
             }
 
@@ -336,7 +359,7 @@ function getLastestPosts({
 }
 
 app.get('/api/latest', async (req, res) => {
-  if (req.logged_in === true && !!req.user) {
+  if (req.roles.internal_user === true && !!req.user) {
     res.json({
       posts: await getLastestPosts({
         amount: 100,
@@ -351,7 +374,7 @@ app.get('/api/latest', async (req, res) => {
 })
 app.get('/api/latest_with_hashtag/:hashtag', async (req, res) => {
   const hashtag = req.params.hashtag || ''
-  if (hashtag.length > 0 && req.logged_in === true && !!req.user) {
+  if (hashtag.length > 0 && req.roles.internal_user === true && !!req.user) {
     res.json({
       posts: await getLastestPosts({
         amount: 100,
@@ -367,7 +390,7 @@ app.get('/api/latest_with_hashtag/:hashtag', async (req, res) => {
 })
 
 app.post('/api/share', (req, res) => {
-  if (req.logged_in === true && req.blocked === false && !!req.user) {
+  if (req.roles.internal_user === true && req.blocked === false && !!req.user) {
     // get data from req.body
 
     const text = req.body.text || ''
