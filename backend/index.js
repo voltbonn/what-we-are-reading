@@ -349,7 +349,10 @@ app.use(async function (req, res, next) {
       await generateNewInvites({ email: req.user.email })
       const invitesForUser = await getInvitesForUser({ email: req.user.email })
       if (invitesForUser.length > 0) {
-        req.roles.invited = true
+        await useInvite({
+          uuid: invitesForUser[0].uuid,
+          email: req.user.email,
+        })
       }
     } else {
       // check if user used an invite
