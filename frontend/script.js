@@ -30,6 +30,9 @@ function getLatest() {
         .sort((a, b) => new Date(b.date) - new Date(a.date))
         .map(post => {
 
+
+          post.click_count = (post.statistics || []).reduce((sum, stats) => sum + stats.count, 0)
+
           post.text = post.text
             // replace html parts with html-special-chars
             .replace(/</g, '&lt;')
@@ -47,26 +50,11 @@ function getLatest() {
               // url encode the url
               const url_encoded = encodeURI(url)
 
-              let click_count = post.statistics.find(statistic => statistic.about_content === String(url))
-              if (!click_count) {
-                click_count = 0
-              } else {
-                click_count = click_count.count
-              }
-
-              return `<a class="url" href="${url_encoded}" target="_blank" data-click-count="${click_count}">${url}</a>`
+              return `<a class="url" href="${url_encoded}" target="_blank">${url}</a>`
             })
             // make hashtags clickable
             .replace(hashtag_regex, (match, p1) => {
-              // todo make sure that this does not break out of the s-tag by stripping possible html tags
-              let click_count = post.statistics.find(statistic => statistic.about_content === match)
-              if (!click_count) {
-                click_count = 0
-              } else {
-                click_count = click_count.count
-              }
-
-              return `<a class="hashtag" href="?hashtag=${encodeURIComponent(p1)}" data-click-count="${click_count}">${match}</a>`
+              return `<a class="hashtag" href="?hashtag=${encodeURIComponent(p1)}">${match}</a>`
             })
 
           // get the difference between now and the date in a human readable format
@@ -141,9 +129,13 @@ function getLatest() {
         const footer_ele = document.createElement('div')
         footer_ele.classList.add('footer')
         
-        const date_ele = document.createElement('em')
+        const date_ele = document.createElement('p')
         date_ele.classList.add('body2')
-        date_ele.innerHTML = post.date
+        if (post.click_count > 0) {
+          date_ele.innerHTML = `${post.date} – ${post.click_count} ${post.click_count === 1 ? 'click' : 'clicks'}`
+        } else {
+          date_ele.innerHTML = post.date
+        }
         footer_ele.appendChild(date_ele)
 
         if (post.permissions.can_delete === true) {
