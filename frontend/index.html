@@ -5,7 +5,7 @@
     <title>What we are reading.</title>
 
     <meta charset="utf-8" />
-    <link rel="icon" href="./favicon.ico" />
+    <link rel="icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#502379" media="(prefers-color-scheme: dark)" />
     <meta name="background-color" content="#502379" media="(prefers-color-scheme: dark)" />
@@ -24,8 +24,8 @@
     
     <meta property="twitter:card" content="summary" />
     
-    <link rel="apple-touch-icon" href="./volt-logo-white-192.png" />
-    <link rel="manifest" href="./manifest.json" />
+    <link rel="apple-touch-icon" href="/volt-logo-white-192.png" />
+    <link rel="manifest" href="/manifest.json" />
 
     <script>
       // Just to make the console a bit queer.
@@ -46,11 +46,11 @@
       `)
     </script>
 
-    <link rel="stylesheet" href="./Ubuntu/index.css" type="text/css" />
-    <link rel="preload" href="./Ubuntu/ubuntu-v15-latin-regular.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="./Ubuntu/ubuntu-v15-latin-700.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/Ubuntu/index.css" type="text/css" />
+    <link rel="preload" href="/Ubuntu/ubuntu-v15-latin-regular.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/Ubuntu/ubuntu-v15-latin-700.woff2" as="font" type="font/woff2" crossorigin />
 
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="/style.css">
     <style>
       body {
           background: var(--background);
@@ -99,6 +99,18 @@
         margin: 0;
       }
 
+      #invites_list .invite {
+        margin: var(--basis_x0_2) 0;
+        background: var(--purple);
+        color: var(--on-purple);
+        padding: var(--basis_x2) var(--basis_x4);
+        cursor: pointer;
+      }
+      #invites_list .invite:hover {
+        background: var(--purple_dark);
+      }
+
+
       .no_side_margin {
         margin-left: 0;
         margin-right: 0;
@@ -127,11 +139,18 @@
         <h1 style="margin:0;">What we are reading…</h1>
 
         <p>Instead of scrolling endlessly through social media, you have a list of interesting links curated by people from Volt.</p>
-        <p>After you log in with your Volt Europa Account, you can share links and see the latest links from other people in Volt.</p>
 
-        <a href="/login">
-          <button class="default no_side_margin">Login</button>
-        </a>
+        <p id="has_invite">
+          Great! You have an invite.<br />
+          Just log in with your Volt Europa Account and you can share links and see the latest links from other people in Volt.
+        </p>
+        <div id="no_invite">
+          <p>You need an invite to view shared links and share some on your own. <br />
+          Maybe someone will send you one soon.</p>
+          <p>If you already joined this website, you can simply login with your Volt Europa Account.</p>
+        </div>
+
+        <button class="default no_side_margin" onclick="login()">Login</button>
       </div>
     </div>
 
@@ -140,18 +159,22 @@
 
         <h1 style="margin:0;">What we are reading…</h1>
         
-        <p>Instead of scrolling endlessly through social media, you have a list of interesting links curated by people from Volt.</p>
-
         <br />
         <p>
           Hi! You are logged in as <strong id="user_email"></strong>.
         </p>
-        <p>
-          <a href="/logout"><button class="default no_side_margin">Logout</button></a>
+
+        <p id="not_invited">
+          You need an invite to view shared links and share some on your own. <br />
+          Maybe someone will send you one soon.
         </p>
-        <br />
+
+        <p>
+          <button class="default no_side_margin" onclick="logout()">Logout</button>
+        </p>
 
         <div id="share_wrapper">
+          <br />
           <h2>Share a link…</h2>
           <textarea
             id="new_share_text"
@@ -166,11 +189,20 @@
           </p>
         </div>
         <div id="blocked_wrapper" style="display:none;">
+          <br />
           <p>You are currently not allowed to share new links.</p>
+        </div>
+
+        <div id="invites_wrapper" class="hidden">
+          <br />
+          <h2>Invites</h2>
+          <p>You have 5 invites to gift. Share them wisely.</p>
+          <p>Click on the ID to copy the invite-URL.</p>
+          <div id="invites_list"></div>
         </div>
       </div>
 
-      <div class="column">
+      <div class="column hidden" id="posts_wrapper">
         <a href="/">
           <h2 id="list_title" style="margin:0;"></h2>
         </a>
@@ -179,6 +211,6 @@
     </div>
   </main>
   
-  <script src="./script.js"></script>
+  <script src="/script.js"></script>
   </body>
 </html>

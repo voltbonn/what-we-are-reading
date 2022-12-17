@@ -13,7 +13,7 @@ function getQueryVariable(variable) {
   }
 }
 
-function getLatest() {
+function getPosts() {
 
   let url = '/api/latest'
 
@@ -26,7 +26,15 @@ function getLatest() {
     .then(response => response.json())
     .then(data => {
 
-      const latest = data.posts
+      let posts = data.posts
+
+      if (posts.length === 0) {
+        document.getElementById('posts_wrapper').classList.add('hidden');
+      } else {
+        document.getElementById('posts_wrapper').classList.remove('hidden');
+      }
+
+      posts = posts 
         .sort((a, b) => new Date(b.date) - new Date(a.date))
         .map(post => {
 
@@ -87,7 +95,7 @@ function getLatest() {
       const list_section_element = document.querySelector('#list_section')
       list_section_element.innerHTML = ''
 
-      for (const post of latest) {
+      for (const post of posts) {
         const new_post_ele = document.createElement('div')
         new_post_ele.classList.add('shared_post')
 
@@ -167,10 +175,63 @@ function getLatest() {
     })
 }
 
+function getInvites() {
+  // if logged in, get the invites from /api/invites and list them with uuid, date_issued and date_used
+  fetch('/api/invites')
+    .then(response => response.json())
+    .then(data => {
+      console.log('data', data)
+      const invites_list_element = document.querySelector('#invites_list')
+
+      const invites = data.invites
+
+      if (invites.length === 0) {
+        document.getElementById('invites_wrapper').classList.add('hidden');
+        invites_list_element.innerHTML = 'You have no invites.'
+      } else {
+        document.getElementById('invites_wrapper').classList.remove('hidden');
+        invites_list_element.innerHTML = ''
+
+        for (const invite of invites) {
+          const new_invite_ele = document.createElement('div')
+          new_invite_ele.classList.add('invite')
+          new_invite_ele.addEventListener('click', () => {
+            // get the current protocol
+            const protocol = window.location.protocol
+            // get the current domain
+            const domain = window.location.hostname
+            navigator.clipboard.writeText(`${protocol}//${domain}/invite/${invite.uuid}`) // todo make this work for localhost
+              .then(() => {
+                alert('Copied to clipboard.')
+              })
+              .catch(err => {
+                console.error('Could not copy to clipboard.', err)
+              })
+          })
+
+          const uuid_ele = document.createElement('p')
+          uuid_ele.classList.add('body2')
+          uuid_ele.innerHTML = invite.uuid
+          new_invite_ele.appendChild(uuid_ele)
+
+          if (invite.date_used) {
+            const date_used_ele = document.createElement('p')
+            date_used_ele.classList.add('body2')
+            date_used_ele.innerHTML = `Used on: ${new Date(invite.date_used).toLocaleString()}`
+            new_invite_ele.appendChild(date_used_ele)
+          }
+
+          invites_list_element.appendChild(new_invite_ele)
+        }
+      }
+    })
+}
+
 function checkIfLoggedIn() {
   fetch('/api/whoami')
     .then(response => response.json())
     .then(data => {
+      console.log('data', data)
       if (data.email) {
         document.getElementById('login_wrapper').classList.add('hidden');
         document.getElementById('logout_wrapper').classList.remove('hidden');
@@ -181,12 +242,18 @@ function checkIfLoggedIn() {
         document.getElementById('user_email').innerHTML = '???@???.???';
       }
 
-      if (data.blocked === true) {
-        document.getElementById('share_wrapper').classList.add('hidden');
-        document.getElementById('blocked_wrapper').classList.remove('hidden');
-      } else {
+      if (data.roles.invited === true && data.roles.blocked === false) {
         document.getElementById('share_wrapper').classList.remove('hidden');
         document.getElementById('blocked_wrapper').classList.add('hidden');
+      } else {
+        document.getElementById('share_wrapper').classList.add('hidden');
+        document.getElementById('blocked_wrapper').classList.remove('hidden');
+      }
+
+      if (data.roles.invited === true) {
+        document.getElementById('not_invited').classList.add('hidden');
+      } else {
+        document.getElementById('not_invited').classList.remove('hidden');
       }
     })
 }
@@ -226,7 +293,7 @@ function initShareButtonListener() {
         console.log(data);
         if (data.shared === true) {
           document.querySelector('#new_share_text').value = '';
-          getLatest()
+          getPosts()
         }
       })
   })
@@ -249,14 +316,45 @@ function checkForHashtag() {
     list_title_element.innerHTML = `Latest Links`
   }
 }
+function checkForInviteInUrl() {
+  const url = new URL(window.location.href); // 'http://localhost:4008/invite/:uuid'
+  
+  if (url.pathname.startsWith('/invite/')) {
+    const invite = url.pathname.split('/')[2] // get the uuid from the invite
+
+    if (invite.length > 0) {
+      document.getElementById('has_invite').classList.remove('hidden');
+      document.getElementById('no_invite').classList.add('hidden');
+    } else {
+      document.getElementById('has_invite').classList.add('hidden');
+      document.getElementById('no_invite').classList.remove('hidden');
+    }
+  } else {
+    document.getElementById('has_invite').classList.add('hidden');
+    document.getElementById('no_invite').classList.remove('hidden');
+  }
+
+}
+
+function login() {
+  // goto /login and have the current url as redirect_to in the query
+  window.location.href = `/login?redirect_to=${encodeURIComponent(window.location.href)}`
+}
+function logout() {
+  // goto /logout and have the current url as redirect_to in the query
+  window.location.href = `/logout?redirect_to=${encodeURIComponent(window.location.href)}`
+}
 
 window.addEventListener('popstate', () => {
   checkForPrefill()
   checkForHashtag()
+  checkForInviteInUrl()
 })
 checkForPrefill()
 checkForHashtag()
+checkForInviteInUrl()
 
-getLatest()
+getPosts()
+getInvites()
 checkIfLoggedIn()
 initShareButtonListener()

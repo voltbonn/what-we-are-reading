@@ -23,6 +23,7 @@ const session_cookie_name = '__share_session'
 const default_roles = {
   external_user: false,
   internal_user: false,
+  invited: false,
   blocked: false,
   moderator: false,
 }
@@ -61,9 +62,149 @@ function checkOrigin(origin) {
 const db_path = path.join(__dirname, '../../shared_links_db.sqlite3')
 const db = new sqlite3.Database(db_path)
 db.serialize(() => {
+  // date is always the date-created if not specified otherwise
+
+  // db.run('CREATE TABLE IF NOT EXISTS users (uuid TEXT PRIMARY KEY, email TEXT, date TEXT)')
+  db.run('CREATE TABLE IF NOT EXISTS invites (uuid TEXT PRIMARY KEY, email TEXT, used_by_email TEXT, date_issued TEXT, date_used TEXT)')
   db.run('CREATE TABLE IF NOT EXISTS posts (uuid TEXT PRIMARY KEY, text TEXT, email TEXT, date TEXT)')
   db.run('CREATE TABLE IF NOT EXISTS statistics (uuid TEXT PRIMARY KEY, user_email TEXT, taken_action TEXT, about_post_uuid TEXT, about_content TEXT, date TEXT)')
 })
+
+
+
+function getStatisticsForPost({
+  about_post_uuid = null,
+}) {
+  return new Promise(resolve => {
+    db.serialize(() => {
+      const sql = 'SELECT about_content, COUNT(about_content) AS count FROM statistics WHERE about_post_uuid = ? GROUP BY about_content'
+      db.all(sql, [about_post_uuid], (error, rows) => {
+        if (error) {
+          console.error(error)
+          resolve([])
+        } else {
+          resolve(rows)
+        }
+      })
+    })
+  })
+}
+
+function getLastestPosts({
+  amount = 10,
+  hashtag = null,
+  user_email = null,
+  roles = default_roles,
+}) {
+  return new Promise(resolve => {
+    // get data from sqlite database
+    db.serialize(() => {
+      let sql = `SELECT uuid, text, email, date AS date FROM posts ORDER BY date DESC LIMIT ${amount}`
+
+      if (hashtag) {
+        sql = `SELECT uuid, text, email, date AS date FROM posts WHERE text LIKE "%#${hashtag}%" ORDER BY date DESC LIMIT ${amount}`
+      }
+      db.all(sql, async (error, rows) => {
+        if (error) {
+          console.error(error)
+          resolve([])
+        } else {
+
+          for (let i = 0; i < rows.length; i++) {
+            const row = rows[i]
+
+            row.statistics = await getStatisticsForPost({
+              about_post_uuid: row.uuid,
+            })
+
+            row.permissions = {
+              can_delete: false,
+            }
+
+            if (user_email !== null) {
+              if (
+                roles.moderator === true
+                || (
+                  user_email === row.email
+                  && roles.internal_user === true
+                  && roles.invited === true
+                  && roles.blocked === false
+                )
+              ) {
+                row.permissions.can_delete = true
+              }
+            }
+
+            delete row.email; // make the posts annonymous
+
+            rows[i] = row
+          }
+          resolve(rows)
+        }
+      })
+    })
+  })
+}
+
+function getInvitesForUser({ email }) {
+  return new Promise((resolve, reject) => {
+    db.all('SELECT uuid, date_issued, date_used FROM invites WHERE email = ?', [email], (err, rows) => {
+      if (err) {
+        reject(err)
+      } else {
+        resolve(rows)
+      }
+    })
+  })
+}
+
+function generateNewInvites({ email, count = 5 }) {
+  // add 5 new invites to the database in one go
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      const stmt = db.prepare('INSERT INTO invites (uuid, email, used_by_email, date_issued, date_used) VALUES (?, ?, ?, ?, ?)')
+
+      for (let i = 0; i < count; i++) {
+        stmt.run([
+          uuidv4(), email, '', new Date().toISOString(), ''
+        ])
+      }
+
+      stmt.finalize()
+
+      resolve()
+    })
+  })
+}
+
+function didUserUseInvite({ email }) {
+  return new Promise((resolve, reject) => {
+    db.all('SELECT uuid, date_issued, date_used FROM invites WHERE used_by_email = ?', [email], (err, rows) => {
+      if (err) {
+        reject(err)
+      } else {
+        resolve(rows)
+      }
+    })
+  })
+}
+
+function getAllInviteCount() {
+  // get the count of all invites
+  return new Promise((resolve, reject) => {
+    db.all('SELECT COUNT(*) as count FROM invites', [], (err, rows) => {
+      if (err) {
+        reject(err)
+      } else {
+        if (rows.length > 0) {
+          resolve(rows[0].count)
+        } else {
+          resolve(0)
+        }
+      }
+    })
+  })
+}
 
 
 const app = express()
@@ -188,17 +329,46 @@ passport.use(new GoogleStrategy({
 app.use(passport.initialize())
 app.use(passport.session())
 
-app.use(function (req, res, next) {
+app.use(async function (req, res, next) {
 
-  req.roles = default_roles
+  req.roles = { ...default_roles } // clone default roles
 
-  if (!!req.user && !!req.user.id && req.user.id !== null) {
+  if (!!req.user && !!req.user.id && req.user.id !== null && req.user.email.length > 0) {
     req.roles.internal_user = true
   } else {
     req.roles.external_user = true
   }
 
-  if (req.roles.internal_user) {
+  if (req.roles.internal_user === true) {
+
+    const allInviteCount = await getAllInviteCount()
+    if (allInviteCount === 0) {
+      // if no invites exist, generate new ones for the current user.
+      // this ensures that users can always be invited
+      // this is probably only needed for the first user
+      await generateNewInvites({ email: req.user.email })
+      const invitesForUser = await getInvitesForUser({ email: req.user.email })
+      if (invitesForUser.length > 0) {
+        req.roles.invited = true
+      }
+    } else {
+      // check if user used an invite
+      // and is therefore allowed to invite others
+      // and is allowed to use the website at all
+      const invites = await didUserUseInvite({ email: req.user.email })
+      if (invites.length > 0) {
+        req.roles.invited = true
+
+        // check invites were already generated for the user
+        const invitesForUser = await getInvitesForUser({ email: req.user.email })
+        if (invitesForUser.length === 0) {
+          // if not, generate new ones
+          await generateNewInvites({ email: req.user.email })
+        }
+      }
+    }
+
+
     const blocked_emails = (process.env.blocked_emails || '').split(',')
     if (req.logged_in && blocked_emails.includes(req.user.email)) {
       req.roles.blocked = true
@@ -317,77 +487,12 @@ app.get('/api/whoami', (req, res) => {
   }
 })
 
-function getStatisticsForPost({
-  about_post_uuid = null,
-}) {
-  return new Promise(resolve => {
-    db.serialize(() => {
-      const sql = 'SELECT about_content, COUNT(about_content) AS count FROM statistics WHERE about_post_uuid = ? GROUP BY about_content'
-      db.all(sql, [about_post_uuid], (error, rows) => {
-        if (error) {
-          console.error(error)
-          resolve([])
-        } else {
-          resolve(rows)
-        }
-      })
-    })
-  })
-}
-
-function getLastestPosts({
-  amount = 10,
-  hashtag = null,
-  user_email = null,
-  roles = default_roles,
-}) {
-  return new Promise(resolve => {
-    // get data from sqlite database
-    db.serialize(() => {
-      let sql = `SELECT uuid, text, email, date AS date FROM posts ORDER BY date DESC LIMIT ${amount}`
-
-      if (hashtag) {
-        sql = `SELECT uuid, text, email, date AS date FROM posts WHERE text LIKE "%#${hashtag}%" ORDER BY date DESC LIMIT ${amount}`
-      }
-      db.all(sql, async (error, rows) => {  
-        if (error) {
-          console.error(error)
-          resolve([])
-        } else {
-
-          for (let i = 0; i < rows.length; i++) {
-            const row = rows[i]
-
-            row.statistics = await getStatisticsForPost({
-              about_post_uuid: row.uuid,
-            })
-
-            row.permissions = {
-              can_delete: false,
-            }
-
-            if (user_email !== null) {
-              if (
-                user_email === row.email
-                || roles.moderator.includes(user_email)
-              ) {
-                row.permissions.can_delete = true
-              }
-            }
-
-            delete row.email; // make the posts annonymous
-
-            rows[i] = row
-          }
-          resolve(rows)
-        }
-      })
-    })
-  })
-}
-
 app.get('/api/latest', async (req, res) => {
-  if (req.roles.internal_user === true && !!req.user) {
+  if (
+    req.roles.internal_user === true
+    && req.roles.invited === true
+    && !!req.user
+  ) {
     res.json({
       posts: await getLastestPosts({
         amount: 100,
@@ -402,7 +507,12 @@ app.get('/api/latest', async (req, res) => {
 })
 app.get('/api/latest_with_hashtag/:hashtag', async (req, res) => {
   const hashtag = req.params.hashtag || ''
-  if (hashtag.length > 0 && req.roles.internal_user === true && !!req.user) {
+  if (
+    hashtag.length > 0
+    && req.roles.internal_user === true
+    && req.roles.invited === true
+    && !!req.user
+  ) {
     res.json({
       posts: await getLastestPosts({
         amount: 100,
@@ -418,7 +528,12 @@ app.get('/api/latest_with_hashtag/:hashtag', async (req, res) => {
 })
 
 app.post('/api/share', (req, res) => {
-  if (req.roles.internal_user === true && req.blocked === false && !!req.user) {
+  if (
+    req.roles.internal_user === true
+    && req.roles.invited === true
+    && req.roles.blocked === false
+    && !!req.user
+  ) {
     // get data from req.body
 
     const text = req.body.text || ''
@@ -470,7 +585,13 @@ app.post('/api/share', (req, res) => {
 
 app.delete('/api/delete/:uuid', (req, res) => {
   const uuid = req.params.uuid || ''
-  if (uuid.length > 0 && req.roles.internal_user === true && !!req.user) {
+  if (
+    uuid.length > 0
+    && req.roles.internal_user === true
+    && req.roles.invited === true
+    && req.roles.blocked === false
+    && !!req.user
+  ) {
     // delete post with the uuid
     const email = req.user.email
     try {
@@ -570,7 +691,131 @@ app.post('/api/statistics', (req, res) => {
   }
 })
 
+app.get('/api/invites', async (req, res) => {
+  try {
 
+    if (req.roles.internal_user === false) {
+      throw new Error('Not logged in.')
+    }
+
+    if (!(!!req.user && !!req.user.email)) {
+      throw new Error('No email.')
+    }
+
+    if (req.roles.invited === false) {
+      throw new Error('Not invited.')
+    }
+  
+    const invites = await getInvitesForUser({ email: req.user.email })
+    res.json({
+      invites,
+    })
+  } catch (error) {
+    res.json({
+      invites: [],
+      error: String(error),
+    })
+  }
+  
+})
+
+function useInvite({ uuid, email }) {
+  console.log('uuid, email', uuid, email)
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      // check if invite was already used
+      db.get('SELECT used_by_email FROM invites WHERE uuid = ?', [uuid], function (error, row) {
+        console.log('error, row', error, row)
+        if (error) {
+          reject(error)
+        } else {
+          if (
+            row
+            && typeof row.used_by_email === 'string'
+            && row.used_by_email.length > 0
+          ) {
+            reject('Invite already used.')
+          } else {
+            // update invite to used
+            db.run('UPDATE invites SET date_used = ?, used_by_email = ? WHERE uuid = ?', [new Date().toISOString(), email, uuid], function (error) { // todo this update thing does not work
+              if (error) {
+                reject(error)
+              } else {
+                resolve(true)
+              }
+            })
+          }
+        }
+      })
+    })
+  })
+}
+
+
+app.get('/api/use_invite/:uuid', async (req, res) => {
+
+  try {
+
+    const uuid = req.params.uuid || ''
+    const email = req.user.email || ''
+
+    if (uuid.length === 0) {
+      throw new Error('No uuid. (/api/use_invite/:uuid) ')
+    }
+
+    if (req.roles.internal_user === false) {
+      throw new Error('Not logged in.')
+    }
+
+    if (req.roles.invited === true) {
+      throw new Error('Already invited.')
+    }
+
+    if (!req.user || !req.user.email) {
+      throw new Error('No email.')
+    }
+
+    res.json({
+      invite: await useInvite({ uuid, email })
+    })
+
+  } catch (error) {
+    res.json({
+      invited: false,
+      error: String(error),
+    })
+  }
+})
+
+
+app.get('/invite/:uuid', async (req, res) => {
+
+  try {
+    const uuid = req.params.uuid || ''
+
+    if (uuid.length === 0) {
+      // redirect to /
+      res.redirect('/')
+    }
+
+    if (req.roles.internal_user === true) {
+
+      if (req.roles.invited === true) {
+        res.redirect('/')
+        return
+      }
+
+      if (!!req.user && !!req.user.email) {
+        await useInvite({ uuid, email: req.user.email })
+      }
+    }
+  } catch (error) {
+    console.error(error)
+  }
+
+  // display index.html from static_files_path
+  res.sendFile('index.html', { root: static_files_path })
+})
 
 app.use(express.static(static_files_path))
 
