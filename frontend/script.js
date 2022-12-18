@@ -28,11 +28,23 @@ function getPosts() {
 
       let posts = data.posts
 
-      if (posts.length === 0) {
-        document.getElementById('posts_wrapper').classList.add('hidden');
+      const share_and_post_column = document.getElementById('share_and_post_column')
+      const share_wrapper = document.getElementById('share_wrapper')
+      const posts_wrapper = document.getElementById('posts_wrapper')
+      if (posts.length > 0) {
+        posts_wrapper.classList.remove('hidden');
+
+        share_and_post_column.classList.remove('hidden');
       } else {
-        document.getElementById('posts_wrapper').classList.remove('hidden');
+        posts_wrapper.classList.add('hidden');
+
+        if (share_wrapper.classList.contains('hidden') === false) {
+          share_and_post_column.classList.remove('hidden');
+        } else {
+          share_and_post_column.classList.add('hidden');
+        }
       }
+      
 
       posts = posts 
         .sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -245,12 +257,23 @@ function checkIfLoggedIn() {
         document.getElementById('user_email').innerHTML = '???@???.???';
       }
 
+      const share_and_post_column = document.getElementById('share_and_post_column')
+      const share_wrapper = document.getElementById('share_wrapper')
+      const posts_wrapper = document.getElementById('posts_wrapper')
       if (data.roles.invited === true && data.roles.blocked === false) {
-        document.getElementById('share_wrapper').classList.remove('hidden');
+        share_wrapper.classList.remove('hidden');
         document.getElementById('blocked_wrapper').classList.add('hidden');
+        
+        share_and_post_column.classList.remove('hidden');
       } else {
-        document.getElementById('share_wrapper').classList.add('hidden');
+        share_wrapper.classList.add('hidden');
         document.getElementById('blocked_wrapper').classList.remove('hidden');
+
+        if (posts_wrapper.classList.contains('hidden') === false) {
+          share_and_post_column.classList.remove('hidden');
+        } else {
+          share_and_post_column.classList.add('hidden');
+        }
       }
 
       if (data.roles.invited === true) {
