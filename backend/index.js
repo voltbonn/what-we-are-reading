@@ -373,12 +373,12 @@ app.use(async function (req, res, next) {
 
 
     const blocked_emails = (process.env.blocked_emails || '').split(',')
-    if (req.logged_in && blocked_emails.includes(req.user.email)) {
+    if (blocked_emails.includes(req.user.email)) {
       req.roles.blocked = true
     }
 
     const moderator_emails = (process.env.moderator_emails || '').split(',')
-    if (req.logged_in && moderator_emails.includes(req.user.email)) {
+    if (moderator_emails.includes(req.user.email)) {
       req.roles.moderator = true
     }
   }
