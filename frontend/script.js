@@ -2,6 +2,8 @@
 const url_regex = /((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)/g;
 const hashtag_regex = /#(\w+)/g;
 
+window.loaded_posts = []
+
 function getQueryVariable(variable) {
   const query = window.location.search.substring(1);
   const vars = query.split('&');
@@ -13,11 +15,13 @@ function getQueryVariable(variable) {
   }
 }
 
-function getPosts() {
+function loadPosts({
+  hashtag = null,
+}) {
 
   let url = '/api/latest'
 
-  const hashtag = getQueryVariable('hashtag')
+  hashtag = hashtag || getQueryVariable('hashtag')
   if (hashtag) {
     url = `/api/latest_with_hashtag/${hashtag}`
   }
@@ -25,167 +29,176 @@ function getPosts() {
   fetch(url)
     .then(response => response.json())
     .then(data => {
-
-      let posts = data.posts
-
-      const share_and_post_column = document.getElementById('share_and_post_column')
-      const share_wrapper = document.getElementById('share_wrapper')
-      const posts_wrapper = document.getElementById('posts_wrapper')
-      if (posts.length > 0) {
-        posts_wrapper.classList.remove('hidden');
-
-        share_and_post_column.classList.remove('hidden');
-      } else {
-        posts_wrapper.classList.add('hidden');
-
-        if (share_wrapper.classList.contains('hidden') === false) {
-          share_and_post_column.classList.remove('hidden');
-        } else {
-          share_and_post_column.classList.add('hidden');
-        }
-      }
-      
-
-      posts = posts 
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
-        .map(post => {
-
-
-          post.click_count = (post.statistics || []).reduce((sum, stats) => sum + stats.count, 0)
-
-          post.text = post.text
-            // replace html parts with html-special-chars
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;')
-            // make urls clickable
-            .replace(url_regex, match => {
-
-              const url = new URL(match)
-              if (url.hostname === 'localhost') {
-                return url
-              }
-
-              // url encode the url
-              const url_encoded = encodeURI(url)
-
-              return `<a class="url" href="${url_encoded}" target="_blank">${url}</a>`
-            })
-            // make hashtags clickable
-            .replace(hashtag_regex, (match, p1) => {
-              return `<a class="hashtag" href="?hashtag=${encodeURIComponent(p1)}">${match}</a>`
-            })
-
-          // get the difference between now and the date in a human readable format
-          const date = new Date(post.date)
-          const diff = new Date() - date
-          if (diff >= 0) {
-            const diff_days = Math.floor(diff / (1000 * 60 * 60 * 24))
-            const diff_hours = Math.floor(diff / (1000 * 60 * 60))
-            const diff_minutes = Math.floor(diff / (1000 * 60))
-            const diff_seconds = Math.floor(diff / (1000))
-
-            if (diff_seconds < 60) {
-              post.date = `${diff_seconds} ${diff_seconds === 1 ? 'second' : 'seconds'} ago`
-            } else if (diff_minutes < 60) {
-              post.date = `${diff_minutes} ${diff_minutes === 1 ? 'minute' : 'minutes'} ago`
-            } else if (diff_hours < 24) {
-              post.date = `${diff_hours} ${diff_hours === 1 ? 'hour' : 'hours'} ago`
-            } else if (diff_days < 7) {
-              post.date = `${diff_days} ${diff_days === 1 ? 'day' : 'days'} ago`
-            } else {
-              post.date = new Date(post.date).toLocaleString()
-            }
-          } else {
-            post.date = `${new Date(post.date).toLocaleString()} – IN THE FUTURE`
-          }
-
-          return post
-        })
-
-      const list_section_element = document.querySelector('#list_section')
-      list_section_element.innerHTML = ''
-
-      for (const post of posts) {
-        const new_post_ele = document.createElement('div')
-        new_post_ele.classList.add('shared_post')
-
-        const text_ele = document.createElement('p')
-        text_ele.classList.add('text')
-        text_ele.innerHTML = post.text
-        text_ele.querySelectorAll('a.url')
-          .forEach(url_ele => {
-            url_ele.addEventListener('click', event => {
-
-              // get the url from the href attribute
-              const url = new URL(decodeURIComponent(url_ele.href))
-
-              saveStatistics({
-                taken_action: 'click',
-                about_post_uuid: post.uuid,
-                about_content: String(url),
-              })
-              
-            })
-          })
-        text_ele.querySelectorAll('a.hashtag')
-          .forEach(hashtag_ele => {
-            hashtag_ele.addEventListener('click', event => {
-
-              // get the hashtag from the inner text
-              const hashtag = hashtag_ele.innerText
-
-              saveStatistics({
-                taken_action: 'click',
-                about_post_uuid: post.uuid,
-                about_content: hashtag,
-              })
-
-            })
-          })
-        new_post_ele.appendChild(text_ele)
-
-        const footer_ele = document.createElement('div')
-        footer_ele.classList.add('footer')
-        
-        const date_ele = document.createElement('p')
-        date_ele.classList.add('body2')
-        if (post.click_count > 0) {
-          date_ele.innerHTML = `${post.date} – ${post.click_count} ${post.click_count === 1 ? 'click' : 'clicks'}`
-        } else {
-          date_ele.innerHTML = post.date
-        }
-        footer_ele.appendChild(date_ele)
-
-        if (post.permissions.can_delete === true) {
-          const delete_button_ele = document.createElement('button')
-          delete_button_ele.classList.add('red')
-          delete_button_ele.innerHTML = 'Delete'
-          delete_button_ele.addEventListener('click', () => {
-            fetch(`/api/delete/${post.uuid}`, {
-              method: 'DELETE'
-            })
-              .then(response => response.json())
-              .then(data => {
-                if (data.deleted === true) {
-                  new_post_ele.remove()
-                } else {
-                  console.error(data)
-                  alert('Could not delete the post.')
-                }
-              })
-          })
-          footer_ele.appendChild(delete_button_ele)
-        }
-
-        new_post_ele.appendChild(footer_ele)
-
-        list_section_element.appendChild(new_post_ele)
-      }
-
+      window.loaded_posts = data.posts
+      renderPosts()
     })
 }
+
+function renderPosts() {
+
+  let posts = window.loaded_posts
+
+  const share_and_post_column = document.getElementById('share_and_post_column')
+  const share_wrapper = document.getElementById('share_wrapper')
+  const posts_wrapper = document.getElementById('posts_wrapper')
+  if (posts.length > 0) {
+    posts_wrapper.classList.remove('hidden');
+
+    share_and_post_column.classList.remove('hidden');
+  } else {
+    posts_wrapper.classList.add('hidden');
+
+    if (share_wrapper.classList.contains('hidden') === false) {
+      share_and_post_column.classList.remove('hidden');
+    } else {
+      share_and_post_column.classList.add('hidden');
+    }
+  }
+
+
+  posts = posts
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .map(post => {
+
+
+    post.click_count = (post.statistics || []).reduce((sum, stats) => sum + stats.count, 0)
+
+    post.text = post.text
+      // replace html parts with html-special-chars
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;')
+      // make urls clickable
+      .replace(url_regex, match => {
+
+        const url = new URL(match)
+        if (url.hostname === 'localhost') {
+          return url
+        }
+
+        // url encode the url
+        const url_encoded = encodeURI(url)
+
+        return `<a class="url" href="${url_encoded}" target="_blank">${url}</a>`
+      })
+      // make hashtags clickable
+      .replace(hashtag_regex, (match, p1) => {
+        return `<a class="hashtag" href="?hashtag=${encodeURIComponent(p1)}">${match}</a>`
+      })
+
+    // get the difference between now and the date in a human readable format
+    const date = new Date(post.date)
+    const diff = new Date() - date
+    if (diff >= 0) {
+      const diff_days = Math.floor(diff / (1000 * 60 * 60 * 24))
+      const diff_hours = Math.floor(diff / (1000 * 60 * 60))
+      const diff_minutes = Math.floor(diff / (1000 * 60))
+      const diff_seconds = Math.floor(diff / (1000))
+
+      if (diff_seconds < 60) {
+        post.date = `${diff_seconds} ${diff_seconds === 1 ? 'second' : 'seconds'} ago`
+      } else if (diff_minutes < 60) {
+        post.date = `${diff_minutes} ${diff_minutes === 1 ? 'minute' : 'minutes'} ago`
+      } else if (diff_hours < 24) {
+        post.date = `${diff_hours} ${diff_hours === 1 ? 'hour' : 'hours'} ago`
+      } else if (diff_days < 7) {
+        post.date = `${diff_days} ${diff_days === 1 ? 'day' : 'days'} ago`
+      } else {
+        post.date = new Date(post.date).toLocaleString()
+      }
+    } else {
+      post.date = `${new Date(post.date).toLocaleString()} – IN THE FUTURE`
+    }
+
+    return post
+  })
+
+  const list_section_element = document.querySelector('#list_section')
+  list_section_element.innerHTML = ''
+
+  for (const post of posts) {
+    const new_post_ele = document.createElement('div')
+    new_post_ele.classList.add('shared_post')
+
+    const text_ele = document.createElement('p')
+    text_ele.classList.add('text')
+    text_ele.innerHTML = post.text
+    text_ele.querySelectorAll('a.url')
+      .forEach(url_ele => {
+        url_ele.addEventListener('click', event => {
+
+          // get the url from the href attribute
+          const url = new URL(decodeURIComponent(url_ele.href))
+
+          saveStatistics({
+            taken_action: 'click',
+            about_post_uuid: post.uuid,
+            about_content: String(url),
+          })
+
+        })
+      })
+    text_ele.querySelectorAll('a.hashtag')
+      .forEach(hashtag_ele => {
+        hashtag_ele.addEventListener('click', event => {
+          event.preventDefault()
+
+          // get the hashtag from the inner text
+          const hashtag = hashtag_ele.innerText
+
+          saveStatistics({
+            taken_action: 'click',
+            about_post_uuid: post.uuid,
+            about_content: hashtag,
+          })
+
+          loadPosts({
+            hashtag: hashtag.replace('#', ''),
+          })
+        })
+      })
+    new_post_ele.appendChild(text_ele)
+
+    const footer_ele = document.createElement('div')
+    footer_ele.classList.add('footer')
+
+    const date_ele = document.createElement('p')
+    date_ele.classList.add('body2')
+    if (post.click_count > 0) {
+      date_ele.innerHTML = `${post.date} – ${post.click_count} ${post.click_count === 1 ? 'click' : 'clicks'}`
+    } else {
+      date_ele.innerHTML = post.date
+    }
+    footer_ele.appendChild(date_ele)
+
+    if (post.permissions.can_delete === true) {
+      const delete_button_ele = document.createElement('button')
+      delete_button_ele.classList.add('red')
+      delete_button_ele.innerHTML = 'Delete'
+      delete_button_ele.addEventListener('click', () => {
+        fetch(`/api/delete/${post.uuid}`, {
+          method: 'DELETE'
+        })
+          .then(response => response.json())
+          .then(data => {
+            if (data.deleted === true) {
+              new_post_ele.remove()
+            } else {
+              console.error(data)
+              alert('Could not delete the post.')
+            }
+          })
+      })
+      footer_ele.appendChild(delete_button_ele)
+    }
+
+    new_post_ele.appendChild(footer_ele)
+
+    list_section_element.appendChild(new_post_ele)
+  }
+}
+
 
 function getInvites() {
   // if logged in, get the invites from /api/invites and list them with uuid, date_issued and date_used
@@ -319,7 +332,7 @@ function initShareButtonListener() {
         console.log(data);
         if (data.shared === true) {
           document.querySelector('#new_share_text').value = '';
-          getPosts()
+          loadPosts({})
         }
       })
   })
@@ -380,7 +393,7 @@ checkForPrefill()
 checkForHashtag()
 checkForInviteInUrl()
 
-getPosts()
+loadPosts({})
 getInvites()
 checkIfLoggedIn()
 initShareButtonListener()
