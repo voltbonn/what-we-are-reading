@@ -723,12 +723,10 @@ app.get('/api/invites', async (req, res) => {
 })
 
 function useInvite({ uuid, email }) {
-  console.log('uuid, email', uuid, email)
   return new Promise((resolve, reject) => {
     db.serialize(() => {
       // check if invite was already used
       db.get('SELECT used_by_email FROM invites WHERE uuid = ?', [uuid], function (error, row) {
-        console.log('error, row', error, row)
         if (error) {
           reject(error)
         } else {
