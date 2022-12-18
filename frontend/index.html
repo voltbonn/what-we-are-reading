@@ -174,21 +174,6 @@
           <button class="default no_side_margin" onclick="logout()">Logout</button>
         </p>
 
-        <div id="share_wrapper">
-          <br />
-          <h2>Share a link…</h2>
-          <textarea
-            id="new_share_text"
-            placeholder="This article is so inspiring!!! https://… #education #news"
-            class="no_side_margin"
-            style="width: 100%;"
-          ></textarea><br />
-          <button id="share_submit_button" class="default green no_side_margin">Share to Volt</button>
-          <p class="body2">
-            <em>We record who posted what, to block you if you post harmful content. But everything is displayed
-              annonymously.</em>
-          </p>
-        </div>
         <div id="blocked_wrapper" style="display:none;">
           <br />
           <p>You are currently not allowed to share new links.</p>
@@ -203,11 +188,28 @@
         </div>
       </div>
 
-      <div class="column hidden" id="posts_wrapper">
-        <a href="/">
-          <h2 id="list_title" style="margin:0;"></h2>
-        </a>
-        <section id="list_section"></section>
+      <div class="column">
+        <div id="share_wrapper">
+          <h2>Share a link…</h2>
+          <textarea
+            id="new_share_text"
+            placeholder="This article is so inspiring!!! https://… #education #news"
+            class="no_side_margin"
+            style="width: 100%;"
+          ></textarea><br />
+          <button id="share_submit_button" class="default green no_side_margin">Share to Volt</button>
+          <p class="body2">
+            <em>We record who posted what, to block you if you post harmful content. But everything is displayed
+              annonymously.</em>
+          </p>
+          <br />
+        </div>
+        <div id="posts_wrapper">
+          <a href="/">
+            <h2 id="list_title" style="margin:0;"></h2>
+          </a>
+          <section id="list_section"></section>
+        </div>
       </div>
     </div>
   </main>
