@@ -184,6 +184,7 @@ function getInvites() {
       const invites_list_element = document.querySelector('#invites_list')
 
       const invites = data.invites
+        .filter(invite => invite.date_used === '')
 
       if (invites.length === 0) {
         document.getElementById('invites_wrapper').classList.add('hidden');
@@ -191,6 +192,8 @@ function getInvites() {
       } else {
         document.getElementById('invites_wrapper').classList.remove('hidden');
         invites_list_element.innerHTML = ''
+
+        document.getElementById('invite_count').innerHTML = invites.length
 
         for (const invite of invites) {
           const new_invite_ele = document.createElement('div')
