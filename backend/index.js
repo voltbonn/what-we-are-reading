@@ -212,7 +212,6 @@ const app = express()
 // redirect to hope.volt.link if the domain is share.volt.link
 app.use(function (req, res, next) {
   if (req.get('host') === 'share.volt.link') {
-    console.log('https://hope.volt.link' + req.originalUrl)
     res.redirect(301, 'https://hope.volt.link' + req.originalUrl)
   } else {
     next()
