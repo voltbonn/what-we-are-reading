@@ -270,7 +270,7 @@ async function session_middleware(req, res, next) {
     cookie: {
       httpOnly: false,
       // domain: false, // for localhost
-      domain: (isDevEnvironment ? 'localhost' : 'share.volt.link'),
+      domain: (isDevEnvironment ? 'localhost' : 'hope.volt.link'),
       sameSite: 'lax',
       secure: false, // somehow doesnt work when its true
       maxAge: 1000 * sessionTTL,
@@ -297,7 +297,7 @@ passport.deserializeUser(function (id, done) {
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: (isDevEnvironment ? 'http://localhost:4008/auth/google/callback' : 'https://share.volt.link/auth/google/callback'),
+  callbackURL: (isDevEnvironment ? 'http://localhost:4008/auth/google/callback' : 'https://hope.volt.link/auth/google/callback'),
 },
   function (accessToken, refreshToken, profile = {}, done) {
     if (
