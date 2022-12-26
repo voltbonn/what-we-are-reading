@@ -507,7 +507,7 @@ app.get('/api/latest', async (req, res) => {
   ) {
     res.json({
       posts: await getLastestPosts({
-        amount: 100,
+        amount: 10,
         user_email: req.user.email,
       })
     })
@@ -527,7 +527,7 @@ app.get('/api/latest_with_hashtag/:hashtag', async (req, res) => {
   ) {
     res.json({
       posts: await getLastestPosts({
-        amount: 100,
+        amount: 10,
         user_email: req.user.email,
         hashtag,
       })
